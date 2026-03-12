@@ -3,23 +3,9 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./use-auth";
+import type { AnalysisResult, NaturalLanguageResult, PageSpeedResult, ScrapeResult } from "@/lib/types";
 
-export interface AnalysisResult {
-  overallScore: number;
-  categoryScores: Record<string, unknown>;
-  strengths: unknown[];
-  weaknesses: unknown[];
-  quickWins: unknown[];
-  keywords: unknown[];
-  strategy: unknown;
-  actionItems: unknown[];
-  trafficPotential: unknown;
-  serpPreview: unknown;
-  industryCategory: string;
-  aiProvider: string;
-  aiReadiness?: unknown;
-  [key: string]: unknown;
-}
+export type { AnalysisResult };
 
 type AnalysisPhase =
   | "idle"
@@ -34,9 +20,9 @@ interface AnalysisContextType {
   error: string | null;
   url: string;
   analysisResult: AnalysisResult | null;
-  scrapeResult: Record<string, unknown> | null;
-  pageSpeedResult: Record<string, unknown> | null;
-  nlResult: Record<string, unknown> | null;
+  scrapeResult: ScrapeResult | null;
+  pageSpeedResult: PageSpeedResult | null;
+  nlResult: NaturalLanguageResult | null;
   startAnalysis: (url: string) => Promise<void>;
 }
 
@@ -49,9 +35,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState<string>("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [scrapeResult, setScrapeResult] = useState<Record<string, unknown> | null>(null);
-  const [pageSpeedResult, setPageSpeedResult] = useState<Record<string, unknown> | null>(null);
-  const [nlResult, setNlResult] = useState<Record<string, unknown> | null>(null);
+  const [scrapeResult, setScrapeResult] = useState<ScrapeResult | null>(null);
+  const [pageSpeedResult, setPageSpeedResult] = useState<PageSpeedResult | null>(null);
+  const [nlResult, setNlResult] = useState<NaturalLanguageResult | null>(null);
   const { user } = useAuth();
 
   const startAnalysis = useCallback(
