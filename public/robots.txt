@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://seo-insight-pro-indol.vercel.app/sitemap.xml
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
