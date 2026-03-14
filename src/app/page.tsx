@@ -59,7 +59,7 @@ export default function LandingPage() {
     {
       icon: <Sparkles className="w-5 h-5" />,
       title: "AI-Powered Insights",
-      desc: "Dual AI analysis with Claude & GPT-4o",
+      desc: "Dual AI analysis with Claude & OpenAI",
     },
     {
       icon: <BarChart3 className="w-5 h-5" />,
@@ -105,7 +105,7 @@ export default function LandingPage() {
     {
       question: "How does AI-powered SEO analysis work?",
       answer:
-        "We use dual AI models — Anthropic Claude and OpenAI GPT-4o — to deeply analyse your site content and structure. The AI identifies ranking opportunities, content gaps, and technical issues that traditional tools miss.",
+        "We use multiple AI models to deeply analyse your site content and structure. The AI identifies ranking opportunities, content gaps, and technical issues that traditional tools miss.",
     },
     {
       question: "Is it free to use?",

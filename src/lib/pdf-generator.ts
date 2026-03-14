@@ -115,6 +115,38 @@ function sectionTitle(doc: jsPDF, y: number, title: string): number {
   return y + 10;
 }
 
+/**
+ * Sanitise a string so jsPDF (Helvetica/WinAnsi) can render it without
+ * producing garbled "&a&b&c" output for characters outside Latin-1.
+ */
+function sanitizeForPdf(text: string): string {
+  if (!text) return "";
+  return text
+    // Smart / curly quotes
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    // Dashes
+    .replace(/\u2014/g, "--")   // em dash
+    .replace(/\u2013/g, "-")    // en dash
+    // Ellipsis
+    .replace(/\u2026/g, "...")
+    // Common symbols used in the PDF
+    .replace(/\u2605/g, "*")    // ★
+    .replace(/\u00B7/g, "-")    // · (middle dot)
+    .replace(/\u2713/g, "+")    // ✓
+    .replace(/\u2717/g, "x")    // ✗
+    .replace(/\u2709/g, "")     // ✉
+    .replace(/\u260E/g, "")     // ✆
+    .replace(/\u23F1/g, "")     // ⏱
+    .replace(/\u2192/g, "->")   // →
+    .replace(/\u00BB/g, ">>")   // »
+    .replace(/\u00AB/g, "<<")   // «
+    .replace(/\u2022/g, "-")    // •
+    .replace(/\u2023/g, "-")    // ‣
+    // Strip any remaining character outside WinAnsi (Latin-1 supplement)
+    .replace(/[^\x00-\xFF]/g, "");
+}
+
 function drawScoreBar(
   doc: jsPDF,
   x: number,
@@ -216,7 +248,7 @@ export function generateSeoReport(data: PdfExportData): jsPDF {
   if (r.aiProvider === "both") {
     setColor(doc, C.green);
     doc.setFontSize(9);
-    doc.text("Dual AI Verified (Claude + GPT-4o)", 105, cy, { align: "center" });
+    doc.text("Multi-Model AI Verified Analysis", 105, cy, { align: "center" });
     cy += 8;
   }
 
@@ -301,13 +333,13 @@ export function generateSeoReport(data: PdfExportData): jsPDF {
   setColor(doc, C.primary);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  const currentTitle = r.serpPreview.currentTitle || "(No title set)";
+  const currentTitle = sanitizeForPdf(r.serpPreview.currentTitle || "(No title set)");
   doc.text(currentTitle.slice(0, 70), 15, y);
   y += 5;
   setColor(doc, C.textMuted);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  const currentDesc = r.serpPreview.currentDescription || "(No meta description)";
+  const currentDesc = sanitizeForPdf(r.serpPreview.currentDescription || "(No meta description)");
   const currentLines = doc.splitTextToSize(currentDesc, 170);
   doc.text(currentLines.slice(0, 2), 15, y);
   y += currentLines.slice(0, 2).length * 4 + 8;
@@ -328,12 +360,12 @@ export function generateSeoReport(data: PdfExportData): jsPDF {
   setColor(doc, C.green);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text((r.serpPreview.improvedTitle || "").slice(0, 70), 15, y);
+  doc.text(sanitizeForPdf((r.serpPreview.improvedTitle || "")).slice(0, 70), 15, y);
   y += 5;
   setColor(doc, C.textMuted);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  const impLines = doc.splitTextToSize(r.serpPreview.improvedDescription || "", 170);
+  const impLines = doc.splitTextToSize(sanitizeForPdf(r.serpPreview.improvedDescription || ""), 170);
   doc.text(impLines.slice(0, 2), 15, y);
   y += impLines.slice(0, 2).length * 4 + 8;
 
@@ -402,7 +434,7 @@ export function generateSeoReport(data: PdfExportData): jsPDF {
   setColor(doc, C.textMuted);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  const reasonLines = doc.splitTextToSize(r.trafficPotential.reasoning, 170);
+  const reasonLines = doc.splitTextToSize(sanitizeForPdf(r.trafficPotential.reasoning), 170);
   doc.text(reasonLines.slice(0, 4), 15, y);
   y += reasonLines.slice(0, 4).length * 4 + 5;
 
@@ -489,7 +521,7 @@ function renderInsightList(
     setColor(doc, col);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(`${bullet} ${item.title}`, 15, y);
+    doc.text(`${bullet} ${sanitizeForPdf(item.title)}`, 15, y);
 
     if (item.severity !== "positive") {
       const badge = item.severity === "critical" ? "CRITICAL" : "WARNING";
@@ -502,7 +534,7 @@ function renderInsightList(
     setColor(doc, C.textMuted);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    const lines = doc.splitTextToSize(item.description, 170);
+    const lines = doc.splitTextToSize(sanitizeForPdf(item.description), 170);
     doc.text(lines.slice(0, 2), 18, y);
     y += lines.slice(0, 2).length * 3.5 + 4;
   }
@@ -531,14 +563,14 @@ function renderQuickWins(doc: jsPDF, startY: number, wins: QuickWin[]): number {
     setColor(doc, C.text);
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text(win.title.slice(0, 55), 17, y);
+    doc.text(sanitizeForPdf(win.title).slice(0, 55), 17, y);
 
     doc.setFont("helvetica", "normal");
     setColor(doc, C.textMuted);
-    doc.text(win.estimatedEffort, 120, y);
+    doc.text(sanitizeForPdf(win.estimatedEffort), 120, y);
 
     setColor(doc, win.estimatedImpact === "high" ? C.green : win.estimatedImpact === "medium" ? C.amber : C.primary);
-    doc.text(win.estimatedImpact, 150, y);
+    doc.text(sanitizeForPdf(win.estimatedImpact), 150, y);
 
     setColor(doc, C.green);
     doc.setFont("helvetica", "bold");
@@ -548,7 +580,7 @@ function renderQuickWins(doc: jsPDF, startY: number, wins: QuickWin[]): number {
     setColor(doc, C.textMuted);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    const descLines = doc.splitTextToSize(win.description, 160);
+    const descLines = doc.splitTextToSize(sanitizeForPdf(win.description), 160);
     doc.text(descLines.slice(0, 2), 17, y);
     y += descLines.slice(0, 2).length * 3 + 4;
   }
@@ -582,7 +614,7 @@ function renderKeywords(
     setColor(doc, C.text);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(kw.keyword.slice(0, 35), 17, y);
+    doc.text(sanitizeForPdf(kw.keyword).slice(0, 35), 17, y);
 
     // Relevance bar
     drawScoreBar(doc, 85, y - 2, 22, kw.relevanceScore, C.primary);
@@ -612,7 +644,7 @@ function renderKeywords(
       setColor(doc, C.textMuted);
       doc.setFontSize(6.5);
       doc.setFont("helvetica", "italic");
-      doc.text(kw.suggestion.slice(0, 90), 20, y);
+      doc.text(sanitizeForPdf(kw.suggestion).slice(0, 90), 20, y);
       y += 4;
     }
   }
@@ -656,7 +688,7 @@ function renderStrategy(
       setColor(doc, C.text);
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(item.title.slice(0, 60), 18, y);
+      doc.text(sanitizeForPdf(item.title).slice(0, 60), 18, y);
 
       setColor(doc, prioCol);
       doc.setFontSize(7);
@@ -666,7 +698,7 @@ function renderStrategy(
       setColor(doc, C.textMuted);
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      const lines = doc.splitTextToSize(item.description, 165);
+      const lines = doc.splitTextToSize(sanitizeForPdf(item.description), 165);
       doc.text(lines.slice(0, 3), 18, y);
       y += lines.slice(0, 3).length * 3.5 + 4;
     }
@@ -767,7 +799,7 @@ function renderNLSection(doc: jsPDF, startY: number, nl: NaturalLanguageResult):
     let ex = 15;
     for (const entity of topEntities) {
       const entityColor = entityTypeColors[entity.type] || C.textMuted;
-      const chipText = `${entity.name} (${Math.round(entity.salience * 100)}%)`;
+      const chipText = `${sanitizeForPdf(entity.name)} (${Math.round(entity.salience * 100)}%)`;
       // Cap chip width to prevent overflow — mirrors pro-report approach
       const chipW = Math.min(chipText.length * 1.5 + 6, 72);
       // Truncate display text to fit inside the capped chip width
@@ -801,8 +833,8 @@ function renderNLSection(doc: jsPDF, startY: number, nl: NaturalLanguageResult):
     y += 5;
     setColor(doc, C.green);
     doc.setFont("helvetica", "normal");
-    // Convert raw path "/Foo/Bar/Baz" → "Foo › Bar › Baz" and wrap to full width
-    const catDisplay = cat.name.split("/").filter(Boolean).join(" › ");
+    // Convert raw path "/Foo/Bar/Baz" → "Foo > Bar > Baz" and wrap to full width
+    const catDisplay = sanitizeForPdf(cat.name.split("/").filter(Boolean).join(" > "));
     const catText = `${catDisplay}  (${Math.round(cat.confidence * 100)}% confidence)`;
     const catLines = doc.splitTextToSize(catText, 175) as string[];
     doc.text(catLines.slice(0, 2), 15, y);
@@ -845,7 +877,7 @@ function renderAIScore(doc: jsPDF, startY: number, ai: AIReadinessResult): numbe
   // Grade badge
   const gradeCol = ai.grade === "excellent" ? C.green : ai.grade === "good" ? "#06B6D4" : ai.grade === "fair" ? C.amber : C.red;
   setColor(doc, gradeCol);
-  doc.text(`${ai.score}/100 — ${ai.grade.toUpperCase()}`, 145, y + 4);
+  doc.text(`${ai.score}/100 - ${ai.grade.toUpperCase()}`, 145, y + 4);
   y += 14;
 
   // Summary row
@@ -853,11 +885,11 @@ function renderAIScore(doc: jsPDF, startY: number, ai: AIReadinessResult): numbe
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   setColor(doc, C.green);
-  doc.text(`✓ ${passing} passing`, 20, y);
+  doc.text(`(+) ${passing} passing`, 20, y);
   setColor(doc, C.amber);
-  doc.text(`~ ${warning} warning`, 65, y);
+  doc.text(`(~) ${warning} warning`, 65, y);
   setColor(doc, C.red);
-  doc.text(`✗ ${failing} failing`, 110, y);
+  doc.text(`(x) ${failing} failing`, 110, y);
   y += 6;
 
   // Top-5 weakest signals (warn + fail first)
@@ -865,16 +897,16 @@ function renderAIScore(doc: jsPDF, startY: number, ai: AIReadinessResult): numbe
   for (const sig of sorted) {
     y = checkPageBreak(doc, y, 10);
     const col = sig.status === "pass" ? C.green : sig.status === "warn" ? C.amber : C.red;
-    const bullet = sig.status === "pass" ? "+" : sig.status === "warn" ? "~" : "✗";
+    const bullet = sig.status === "pass" ? "+" : sig.status === "warn" ? "~" : "x";
     setColor(doc, col);
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "bold");
     doc.text(`[${bullet}]`, 18, y);
     setColor(doc, C.text);
     doc.setFont("helvetica", "normal");
-    doc.text(sig.label, 27, y);
+    doc.text(sanitizeForPdf(sig.label), 27, y);
     setColor(doc, C.textMuted);
-    const descLines = doc.splitTextToSize(sig.description, 130) as string[];
+    const descLines = doc.splitTextToSize(sanitizeForPdf(sig.description), 130) as string[];
     doc.text(descLines[0] ?? "", 27, y + 3.5);
     y += 10;
   }

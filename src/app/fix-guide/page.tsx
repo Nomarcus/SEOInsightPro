@@ -22,11 +22,205 @@ import {
   Check,
   Lightbulb,
   Loader2,
+  Cpu,
+  X,
 } from "lucide-react";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { useBranding } from "@/hooks/use-branding";
 import { getAIFixGuide } from "@/lib/ai-fix-guides";
-import type { WeaknessItem, AISignal, ScrapeResult } from "@/lib/types";
+import type { WeaknessItem, AISignal, ScrapeResult, AnalysisResult } from "@/lib/types";
+
+// ─── AI Agent Prompt Builder ─────────────────────────────
+
+function buildAgentPrompt(
+  url: string,
+  analysisResult: AnalysisResult,
+  allIssues: WeaknessItem[],
+  aiIssues: WeaknessItem[]
+): string {
+  const r = analysisResult;
+  const hostname = (() => {
+    try { return new URL(url.startsWith("http") ? url : `https://${url}`).hostname; }
+    catch { return url; }
+  })();
+
+  const lines: string[] = [];
+
+  lines.push("# SEO Fix Agent — Full Implementation Prompt");
+  lines.push(`# Website: ${url}`);
+  lines.push(`# Generated: ${new Date().toLocaleDateString("sv-SE")}`);
+  lines.push("");
+  lines.push("---");
+  lines.push("");
+  lines.push("## Your Role");
+  lines.push(
+    "You are an expert SEO engineer. Your task is to implement every SEO fix listed below for the website " +
+    `**${hostname}**. Work through each issue in order, make the changes to the codebase, and confirm each fix.`
+  );
+  lines.push("");
+  lines.push("## How to Use This Prompt");
+  lines.push(
+    "1. **Claude Code / Codex**: Paste this entire prompt into your AI coding assistant. It will read your codebase and implement all fixes."
+  );
+  lines.push(
+    "2. **ChatGPT / Claude.ai**: Paste this prompt and attach or describe your relevant files (e.g. `index.html`, CMS templates, `next.config.js`)."
+  );
+  lines.push(
+    "3. **GitHub Copilot**: Open your project, paste this as a comment block at the top of your main SEO file, and use Copilot to generate the fixes inline."
+  );
+  lines.push("");
+  lines.push("---");
+  lines.push("");
+  lines.push("## Site Overview");
+  lines.push(`- **URL:** ${url}`);
+  lines.push(`- **SEO Score:** ${r.overallScore}/100`);
+  lines.push(`- **Industry:** ${r.industryCategory || "Not specified"}`);
+  lines.push(`- **Technical SEO:** ${r.categoryScores.technical?.score ?? "N/A"}/100`);
+  lines.push(`- **Content Quality:** ${r.categoryScores.content?.score ?? "N/A"}/100`);
+  lines.push(`- **On-Page SEO:** ${r.categoryScores.onPage?.score ?? "N/A"}/100`);
+  lines.push(`- **Performance:** ${r.categoryScores.performance?.score ?? "N/A"}/100`);
+  lines.push(`- **User Experience:** ${r.categoryScores.userExperience?.score ?? "N/A"}/100`);
+  lines.push("");
+
+  lines.push("---");
+  lines.push("");
+  lines.push("## Current SERP State (What Google Sees Now)");
+  lines.push(`- **Current Title:** ${r.serpPreview.currentTitle || "(none)"}`);
+  lines.push(`- **Current Meta Description:** ${r.serpPreview.currentDescription || "(none)"}`);
+  lines.push("");
+  lines.push("## Improved SERP Target (AI Suggestion — Implement This)");
+  lines.push(`- **New Title:** ${r.serpPreview.improvedTitle || "(see below)"}`);
+  lines.push(`- **New Meta Description:** ${r.serpPreview.improvedDescription || "(see below)"}`);
+  lines.push("");
+
+  lines.push("---");
+  lines.push("");
+  lines.push("## SEO Issues to Fix");
+  lines.push(
+    "Implement ALL of the following fixes. Start with CRITICAL issues, then WARNING issues."
+  );
+  lines.push("");
+
+  const critical = allIssues.filter((w) => w.severity === "critical");
+  const warnings = allIssues.filter((w) => w.severity === "warning");
+
+  if (critical.length > 0) {
+    lines.push("### CRITICAL Issues (Fix First)");
+    lines.push("");
+    critical.forEach((item, i) => {
+      lines.push(`#### ${i + 1}. ${item.title} [CRITICAL]`);
+      lines.push(`**Category:** ${item.category}`);
+      lines.push(`**Problem:** ${item.description}`);
+      if (item.estimatedFixTime) lines.push(`**Estimated time:** ${item.estimatedFixTime}`);
+      if (item.technicalLevel) lines.push(`**Difficulty:** ${item.technicalLevel}`);
+      if (item.fixSteps && item.fixSteps.length > 0) {
+        lines.push("**Steps to implement:**");
+        item.fixSteps.forEach((step, s) => lines.push(`${s + 1}. ${step}`));
+      }
+      if (item.tools && item.tools.length > 0) {
+        lines.push(`**Tools:** ${item.tools.join(", ")}`);
+      }
+      lines.push("");
+    });
+  }
+
+  if (warnings.length > 0) {
+    lines.push("### WARNING Issues (Fix After Critical)");
+    lines.push("");
+    warnings.forEach((item, i) => {
+      lines.push(`#### ${i + 1}. ${item.title} [WARNING]`);
+      lines.push(`**Category:** ${item.category}`);
+      lines.push(`**Problem:** ${item.description}`);
+      if (item.estimatedFixTime) lines.push(`**Estimated time:** ${item.estimatedFixTime}`);
+      if (item.fixSteps && item.fixSteps.length > 0) {
+        lines.push("**Steps to implement:**");
+        item.fixSteps.forEach((step, s) => lines.push(`${s + 1}. ${step}`));
+      }
+      lines.push("");
+    });
+  }
+
+  if (aiIssues.length > 0) {
+    lines.push("---");
+    lines.push("");
+    lines.push("## AI Search Readiness Fixes");
+    lines.push(
+      "These fixes improve how AI-powered search engines (ChatGPT, Perplexity, Google AI Overviews) understand your site."
+    );
+    lines.push("");
+    aiIssues.forEach((item, i) => {
+      lines.push(`#### ${i + 1}. ${item.title} [${item.severity.toUpperCase()}]`);
+      lines.push(`**Problem:** ${item.description}`);
+      if (item.fixSteps && item.fixSteps.length > 0) {
+        lines.push("**Steps to implement:**");
+        item.fixSteps.forEach((step, s) => lines.push(`${s + 1}. ${step}`));
+      }
+      lines.push("");
+    });
+  }
+
+  lines.push("---");
+  lines.push("");
+  lines.push("## Keyword Strategy (Target These Keywords)");
+  lines.push("");
+  r.keywords.slice(0, 10).forEach((kw) => {
+    lines.push(
+      `- **${kw.keyword}** — Relevance: ${kw.relevanceScore}/100, Difficulty: ${kw.estimatedDifficulty}, Currently used: ${kw.currentlyUsed ? "Yes" : "No"}`
+    );
+    if (kw.suggestion) lines.push(`  - ${kw.suggestion}`);
+  });
+  lines.push("");
+
+  lines.push("---");
+  lines.push("");
+  lines.push("## 30/60/90 Day Strategy");
+  lines.push("");
+  const byPhase: Record<string, typeof r.strategy> = {
+    immediate: r.strategy.filter((s) => s.timeframe === "immediate"),
+    "short-term": r.strategy.filter((s) => s.timeframe === "short-term"),
+    "long-term": r.strategy.filter((s) => s.timeframe === "long-term"),
+  };
+  const phaseLabels: Record<string, string> = {
+    immediate: "Days 1-30 (Do Now)",
+    "short-term": "Days 31-60 (This Month)",
+    "long-term": "Days 61-90 (This Quarter)",
+  };
+  for (const [phase, items] of Object.entries(byPhase)) {
+    if (!items.length) continue;
+    lines.push(`### ${phaseLabels[phase]}`);
+    items.forEach((item) => {
+      lines.push(`- **${item.title}** [${item.priority.toUpperCase()}]: ${item.description}`);
+    });
+    lines.push("");
+  }
+
+  lines.push("---");
+  lines.push("");
+  lines.push("## Quick Wins (High Impact, Low Effort — Do These First)");
+  lines.push("");
+  r.quickWins.forEach((win) => {
+    lines.push(
+      `- **${win.title}** (+${win.impactPercentage}% estimated impact, effort: ${win.estimatedEffort})`
+    );
+    lines.push(`  ${win.description}`);
+  });
+  lines.push("");
+
+  lines.push("---");
+  lines.push("");
+  lines.push("## Completion Checklist");
+  lines.push("After implementing all fixes:");
+  lines.push("- [ ] Re-run SEO analysis to verify score improvement");
+  lines.push("- [ ] Submit updated sitemap to Google Search Console");
+  lines.push("- [ ] Request re-indexing for changed pages");
+  lines.push("- [ ] Monitor Core Web Vitals in PageSpeed Insights");
+  lines.push("- [ ] Check rankings after 2-4 weeks");
+  lines.push("");
+  lines.push("---");
+  lines.push(`*Prompt generated by SEO Insight Pro — ${new Date().toLocaleDateString("sv-SE")}*`);
+
+  return lines.join("\n");
+}
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -577,6 +771,128 @@ function FixCard({
 
 // ─── Main Page ───────────────────────────────────────────
 
+// ─── AI Agent Modal ──────────────────────────────────────
+
+function AIAgentModal({
+  prompt,
+  onClose,
+}: {
+  prompt: string;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const success = await copyToClipboard(prompt);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)" }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative w-full max-w-3xl rounded-2xl border overflow-hidden flex flex-col"
+        style={{
+          background: "#0B1120",
+          borderColor: "rgba(139,92,246,0.3)",
+          maxHeight: "90vh",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between p-5 border-b shrink-0"
+          style={{ borderColor: "rgba(139,92,246,0.2)" }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="p-2 rounded-lg"
+              style={{ background: "rgba(139,92,246,0.15)" }}
+            >
+              <Cpu className="w-5 h-5" style={{ color: "#A78BFA" }} />
+            </div>
+            <div>
+              <h2 className="font-bold text-base">AI Agent Prompt</h2>
+              <p className="text-xs text-muted-foreground">
+                Copy and paste into Claude Code, Codex, ChatGPT or any AI model
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Instructions banner */}
+        <div
+          className="px-5 py-3 shrink-0"
+          style={{ background: "rgba(139,92,246,0.06)", borderBottom: "1px solid rgba(139,92,246,0.15)" }}
+        >
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span style={{ color: "#A78BFA" }} className="font-semibold">How to use:</span>{" "}
+            Copy the full prompt below and paste it into{" "}
+            <span className="text-foreground">Claude Code</span>,{" "}
+            <span className="text-foreground">OpenAI Codex</span>, or any AI coding assistant.
+            It contains every SEO issue, fix step, keyword strategy and 90-day plan — ready for an AI agent to implement directly in your codebase.
+          </p>
+        </div>
+
+        {/* Prompt content */}
+        <div className="flex-1 overflow-auto p-5">
+          <pre
+            className="text-[11px] font-mono leading-relaxed whitespace-pre-wrap break-words p-4 rounded-lg"
+            style={{ background: "rgba(255,255,255,0.03)", color: "#CBD5E1", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            {prompt}
+          </pre>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between p-4 border-t shrink-0"
+          style={{ borderColor: "rgba(139,92,246,0.2)" }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider"
+              style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B" }}
+            >
+              Premium Feature
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {prompt.split("\n").length} lines · {(prompt.length / 1024).toFixed(1)} KB
+            </span>
+          </div>
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all hover:scale-105"
+            style={{
+              background: copied ? "rgba(16,185,129,0.2)" : "rgba(139,92,246,0.9)",
+              color: copied ? "#10B981" : "#fff",
+              border: copied ? "1px solid rgba(16,185,129,0.4)" : "1px solid transparent",
+            }}
+          >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? "Copied to clipboard!" : "Copy full prompt"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────
+
 export default function FixGuidePage() {
   const router = useRouter();
   const { analysisResult, url, phase, scrapeResult } = useAnalysis();
@@ -584,6 +900,7 @@ export default function FixGuidePage() {
 
   const [openCards, setOpenCards] = useState<Set<number>>(new Set([0]));
   const [filter, setFilter] = useState<DifficultyFilter>("all");
+  const [showAgentModal, setShowAgentModal] = useState(false);
 
   if (phase !== "complete" || !analysisResult) {
     return (
@@ -687,8 +1004,23 @@ export default function FixGuidePage() {
     wordCount: scrapeResult?.wordCount ?? 0,
   };
 
+  // Build agent prompt lazily (only when modal opens)
+  const agentPrompt = showAgentModal
+    ? buildAgentPrompt(url, analysisResult, sorted, aiAsWeaknesses)
+    : "";
+
   return (
     <div className="min-h-screen bg-background">
+      {/* AI Agent Modal */}
+      <AnimatePresence>
+        {showAgentModal && (
+          <AIAgentModal
+            prompt={agentPrompt}
+            onClose={() => setShowAgentModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sticky header */}
       <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -716,21 +1048,40 @@ export default function FixGuidePage() {
             </div>
           </div>
 
-          {/* Expand/collapse controls */}
-          <div className="flex items-center gap-2">
+          {/* Header actions */}
+          <div className="flex items-center gap-3">
+            {/* AI Agent button */}
             <button
-              onClick={expandAll}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setShowAgentModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+              style={{
+                background: "rgba(139,92,246,0.15)",
+                color: "#A78BFA",
+                border: "1px solid rgba(139,92,246,0.3)",
+              }}
             >
-              Expand all
+              <Cpu className="w-3.5 h-3.5" />
+              Sammanställ ALLT till en AI agent
             </button>
-            <span className="text-muted-foreground/30">|</span>
-            <button
-              onClick={collapseAll}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Collapse all
-            </button>
+
+            <span className="text-muted-foreground/30 hidden sm:inline">|</span>
+
+            {/* Expand/collapse */}
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                onClick={expandAll}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Expand all
+              </button>
+              <span className="text-muted-foreground/30">|</span>
+              <button
+                onClick={collapseAll}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Collapse all
+              </button>
+            </div>
           </div>
         </div>
       </div>

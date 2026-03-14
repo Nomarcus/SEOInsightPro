@@ -129,7 +129,7 @@ export default function RootLayout({
                   name: "How does AI-powered SEO analysis work?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Our tool uses dual AI models (Claude and GPT-4o) to analyze your website content, structure, and performance. It then generates personalized recommendations with step-by-step fix guides.",
+                    text: "Our tool uses multiple AI models to analyze your website content, structure, and performance. It then generates personalized recommendations with step-by-step fix guides.",
                   },
                 },
                 {

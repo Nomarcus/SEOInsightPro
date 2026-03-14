@@ -112,6 +112,33 @@ function sectionTitle(doc: jsPDF, y: number, title: string): number {
   return y + 10;
 }
 
+/**
+ * Sanitise a string so jsPDF (Helvetica/WinAnsi) can render it without
+ * producing garbled "&a&b&c" output for characters outside Latin-1.
+ */
+function sanitizeForPdf(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u2014/g, "--")
+    .replace(/\u2013/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/\u2605/g, "*")
+    .replace(/\u00B7/g, "-")
+    .replace(/\u2713/g, "+")
+    .replace(/\u2717/g, "x")
+    .replace(/\u2709/g, "")
+    .replace(/\u260E/g, "")
+    .replace(/\u23F1/g, "")
+    .replace(/\u2192/g, "->")
+    .replace(/\u00BB/g, ">>")
+    .replace(/\u00AB/g, "<<")
+    .replace(/\u2022/g, "-")
+    .replace(/\u2023/g, "-")
+    .replace(/[^\x00-\xFF]/g, "");
+}
+
 function drawScoreBar(
   doc: jsPDF,
   x: number,
@@ -184,7 +211,7 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   setColor(doc, C.bg);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("★  PRO REPORT  ·  CONFIDENTIAL  ·  PREPARED EXCLUSIVELY FOR CLIENT  ★", 105, 11, { align: "center" });
+  doc.text("** PRO REPORT - CONFIDENTIAL - PREPARED EXCLUSIVELY FOR CLIENT **", 105, 11, { align: "center" });
 
   let cy = 42;
 
@@ -251,7 +278,7 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   if (r.aiProvider === "both") {
     setColor(doc, C.green);
     doc.setFontSize(8);
-    doc.text("✓  Dual AI Verified (Claude + GPT-4o)", 105, cy, { align: "center" });
+    doc.text("(+) Multi-Model AI Verified Analysis", 105, cy, { align: "center" });
     cy += 8;
   }
 
@@ -313,9 +340,9 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   setColor(doc, C.red);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("★  TOP CRITICAL ISSUES", 15, y);
+  doc.text(">> TOP CRITICAL ISSUES", 15, y);
   setColor(doc, C.gold);
-  doc.text("★  FASTEST WINS", 110, y);
+  doc.text(">> FASTEST WINS", 110, y);
   y += 5;
 
   const maxRows = Math.max(criticalIssues.length, quickWins.length);
@@ -418,11 +445,11 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   setColor(doc, C.primary);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text((r.serpPreview.currentTitle || "(No title set)").slice(0, 70), 18, y + 14);
+  doc.text(sanitizeForPdf(r.serpPreview.currentTitle || "(No title set)").slice(0, 70), 18, y + 14);
   setColor(doc, C.textMuted);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  const curDescLines = doc.splitTextToSize(r.serpPreview.currentDescription || "(No meta description)", 165);
+  const curDescLines = doc.splitTextToSize(sanitizeForPdf(r.serpPreview.currentDescription || "(No meta description)"), 165);
   doc.text(curDescLines.slice(0, 2), 18, y + 19);
   // Char count
   const curTitleLen = (r.serpPreview.currentTitle || "").length;
@@ -452,11 +479,11 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   setColor(doc, C.green);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text((r.serpPreview.improvedTitle || "").slice(0, 70), 18, y + 14);
+  doc.text(sanitizeForPdf(r.serpPreview.improvedTitle || "").slice(0, 70), 18, y + 14);
   setColor(doc, C.textMuted);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  const impDescLines = doc.splitTextToSize(r.serpPreview.improvedDescription || "", 165);
+  const impDescLines = doc.splitTextToSize(sanitizeForPdf(r.serpPreview.improvedDescription || ""), 165);
   doc.text(impDescLines.slice(0, 2), 18, y + 19);
   const impTitleLen = (r.serpPreview.improvedTitle || "").length;
   const impDescLen = (r.serpPreview.improvedDescription || "").length;
@@ -537,7 +564,7 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   setColor(doc, C.textMuted);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  const reasonLines = doc.splitTextToSize(r.trafficPotential.reasoning, 170);
+  const reasonLines = doc.splitTextToSize(sanitizeForPdf(r.trafficPotential.reasoning), 170);
   doc.text(reasonLines, 15, y);
   y += reasonLines.length * 4 + 5;
 
@@ -561,7 +588,7 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   setColor(doc, C.bg);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("★  PRO REPORT  ·  PREPARED EXCLUSIVELY FOR YOU  ★", 105, 11, { align: "center" });
+  doc.text("** PRO REPORT - PREPARED EXCLUSIVELY FOR YOU **", 105, 11, { align: "center" });
 
   y = 70;
   setColor(doc, C.white);
@@ -612,11 +639,11 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   setColor(doc, C.text);
   doc.setFontSize(9);
   if (b.consultantEmail) {
-    doc.text(`✉  ${b.consultantEmail}`, 105, y, { align: "center" });
+    doc.text(`Email: ${b.consultantEmail}`, 105, y, { align: "center" });
     y += 6;
   }
   if (b.consultantPhone) {
-    doc.text(`✆  ${b.consultantPhone}`, 105, y, { align: "center" });
+    doc.text(`Tel: ${b.consultantPhone}`, 105, y, { align: "center" });
     y += 6;
   }
 
@@ -630,7 +657,7 @@ export function generateProSeoReport(data: ProPdfExportData): jsPDF {
   // Footer
   setColor(doc, C.textMuted);
   doc.setFontSize(7);
-  doc.text("Generated by SEO Insight Pro  ·  Pro Edition", 105, 285, { align: "center" });
+  doc.text("Generated by SEO Insight Pro - Pro Edition", 105, 285, { align: "center" });
 
   return doc;
 }
@@ -665,7 +692,7 @@ function renderProIssues(
     setColor(doc, C.white);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`${idx + 1}. ${item.title}`, 21, y + 6);
+    doc.text(`${idx + 1}. ${sanitizeForPdf(item.title)}`, 21, y + 6);
 
     // Severity badge
     badge(doc, 155, y + 6, isCritical ? "CRITICAL" : "WARNING", isCritical ? C.red : C.amber);
@@ -678,7 +705,7 @@ function renderProIssues(
     setColor(doc, C.textMuted);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    const descLines = doc.splitTextToSize(item.description, 170);
+    const descLines = doc.splitTextToSize(sanitizeForPdf(item.description), 170);
     doc.text(descLines.slice(0, 3), 21, y);
     y += descLines.slice(0, 3).length * 3.5 + 3;
 
@@ -698,7 +725,7 @@ function renderProIssues(
         doc.text(`${s + 1}.`, 21, y);
         setColor(doc, C.text);
         doc.setFont("helvetica", "normal");
-        const stepLines = doc.splitTextToSize(item.fixSteps[s], 162);
+        const stepLines = doc.splitTextToSize(sanitizeForPdf(item.fixSteps[s]), 162);
         doc.text(stepLines.slice(0, 2), 26, y);
         y += stepLines.slice(0, 2).length * 4 + 1;
       }
@@ -711,7 +738,7 @@ function renderProIssues(
       setColor(doc, C.textMuted);
       doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
-      doc.text(`⏱ ${item.estimatedFixTime}`, 21, footerY);
+      doc.text(`Time: ${item.estimatedFixTime}`, 21, footerY);
     }
     if (item.technicalLevel) {
       const lvlColors: Record<string, string> = {
@@ -759,10 +786,10 @@ function renderProQuickWins(doc: jsPDF, startY: number, wins: QuickWin[]): numbe
     setColor(doc, C.text);
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
-    doc.text(win.title.slice(0, 58), 18, y);
+    doc.text(sanitizeForPdf(win.title).slice(0, 58), 18, y);
     doc.setFont("helvetica", "normal");
     setColor(doc, C.textMuted);
-    doc.text(win.estimatedEffort, 115, y);
+    doc.text(sanitizeForPdf(win.estimatedEffort), 115, y);
     setColor(
       doc,
       win.estimatedImpact === "high" ? C.green : win.estimatedImpact === "medium" ? C.amber : C.primary
@@ -776,7 +803,7 @@ function renderProQuickWins(doc: jsPDF, startY: number, wins: QuickWin[]): numbe
     setColor(doc, C.textMuted);
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
-    const descLines = doc.splitTextToSize(win.description, 165);
+    const descLines = doc.splitTextToSize(sanitizeForPdf(win.description), 165);
     doc.text(descLines.slice(0, 2), 18, y);
     y += descLines.slice(0, 2).length * 3.5 + 5;
   }
@@ -788,9 +815,9 @@ function renderProStrategy(doc: jsPDF, startY: number, strategy: StrategyItem[])
   let y = startY;
 
   const timeframes: [string, string, string, string][] = [
-    ["immediate", "DAYS 1–30", "Start immediately — highest impact actions", C.red],
-    ["short-term", "DAYS 31–60", "Build on quick wins — mid-complexity work", C.amber],
-    ["long-term", "DAYS 61–90", "Long-term positioning — sustainable growth", C.green],
+    ["immediate", "DAYS 1-30", "Start immediately - highest impact actions", C.red],
+    ["short-term", "DAYS 31-60", "Build on quick wins - mid-complexity work", C.amber],
+    ["long-term", "DAYS 61-90", "Long-term positioning - sustainable growth", C.green],
   ];
 
   for (const [tf, label, subLabel, color] of timeframes) {
@@ -821,13 +848,13 @@ function renderProStrategy(doc: jsPDF, startY: number, strategy: StrategyItem[])
       setColor(doc, C.text);
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(`→  ${item.title.slice(0, 62)}`, 18, y);
+      doc.text(`->  ${sanitizeForPdf(item.title).slice(0, 62)}`, 18, y);
       badge(doc, 180, y, item.priority.toUpperCase(), prioColor);
       y += 5;
       setColor(doc, C.textMuted);
       doc.setFontSize(7.5);
       doc.setFont("helvetica", "normal");
-      const lines = doc.splitTextToSize(item.description, 165);
+      const lines = doc.splitTextToSize(sanitizeForPdf(item.description), 165);
       doc.text(lines.slice(0, 3), 21, y);
       y += lines.slice(0, 3).length * 3.5 + 5;
     }
@@ -862,7 +889,7 @@ function renderProKeywords(doc: jsPDF, startY: number, keywords: KeywordSuggesti
     setColor(doc, C.text);
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text(kw.keyword.slice(0, 32), 18, y);
+    doc.text(sanitizeForPdf(kw.keyword).slice(0, 32), 18, y);
 
     // Relevance bar
     setFill(doc, C.border);
@@ -886,7 +913,7 @@ function renderProKeywords(doc: jsPDF, startY: number, keywords: KeywordSuggesti
     doc.text(kw.estimatedSearchVolume, 138, y);
 
     setColor(doc, kw.currentlyUsed ? C.green : C.red);
-    doc.text(kw.currentlyUsed ? "✓ Yes" : "✗ No", 163, y);
+    doc.text(kw.currentlyUsed ? "(+) Yes" : "(x) No", 163, y);
 
     // Priority = high relevance + easy + high volume
     const prio =
@@ -1035,7 +1062,7 @@ function renderProNLSection(doc: jsPDF, startY: number, nl: NaturalLanguageResul
     for (const entity of topEntities) {
       const eColor = entityTypeColors[entity.type] ?? C.textMuted;
       const typeLabel = entity.type.charAt(0) + entity.type.slice(1).toLowerCase();
-      const chipText = `${typeLabel}: ${entity.name}  ${Math.round(entity.salience * 100)}%`;
+      const chipText = `${typeLabel}: ${sanitizeForPdf(entity.name)}  ${Math.round(entity.salience * 100)}%`;
       const chipW = Math.min(chipText.length * 1.55 + 6, 80);
 
       if (ex + chipW > 192) {
@@ -1067,8 +1094,8 @@ function renderProNLSection(doc: jsPDF, startY: number, nl: NaturalLanguageResul
     for (const cat of nl.categories.slice(0, 3)) {
       y = checkPageBreak(doc, y, 14);
       const parts = cat.name.split("/").filter(Boolean);
-      // Wrap long category paths — convert "/Foo/Bar/Baz" → "Foo › Bar › Baz"
-      const pathText = parts.join(" › ");
+      // Wrap long category paths — convert "/Foo/Bar/Baz" → "Foo > Bar > Baz"
+      const pathText = sanitizeForPdf(parts.join(" > "));
       setColor(doc, C.textMuted);
       doc.setFontSize(7.5);
       doc.setFont("helvetica", "normal");
@@ -1225,7 +1252,7 @@ function renderProAIScore(doc: jsPDF, startY: number, ai: AIReadinessResult): nu
     setColor(doc, C.text);
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "bold");
-    doc.text(sig.label.slice(0, 48), 18, y + 3);
+    doc.text(sanitizeForPdf(sig.label).slice(0, 48), 18, y + 3);
 
     // Status badge
     setFill(doc, col + "33");
@@ -1259,12 +1286,12 @@ function renderProAIScore(doc: jsPDF, startY: number, ai: AIReadinessResult): nu
       doc.setFontSize(6.5);
       doc.setFont("helvetica", "italic");
       // Description
-      const descLines = doc.splitTextToSize(sig.description, 155) as string[];
+      const descLines = doc.splitTextToSize(sanitizeForPdf(sig.description), 155) as string[];
       doc.text(descLines[0] ?? "", 22, y);
       y += 4;
       // Tip
       setColor(doc, col + "cc");
-      const tipLines = doc.splitTextToSize(`💡 ${sig.tip}`, 155) as string[];
+      const tipLines = doc.splitTextToSize(sanitizeForPdf(`Tip: ${sig.tip}`), 155) as string[];
       doc.text(tipLines.slice(0, 2), 22, y);
       y += tipLines.slice(0, 2).length * 3.5 + 3;
     }

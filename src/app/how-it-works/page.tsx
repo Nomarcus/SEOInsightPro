@@ -223,8 +223,8 @@ export default function HowItWorksPage() {
                 desc: "When available, provides Core Web Vitals (LCP, CLS), Lighthouse performance score, and accessibility score. Without it, those rules default to 'warn'.",
               },
               {
-                title: "AI Insights (Claude / GPT-4o)",
-                desc: "Generates strengths, weaknesses, keywords, and strategy text. The AI does NOT set any numerical scores — all numbers come from the rule engine.",
+                title: "AI Insights (Multiple AI Models)",
+                desc: "Generates strengths, weaknesses, keywords, and strategy text using various AI models. The AI does NOT set any numerical scores — all numbers come from the rule engine.",
               },
             ].map((source) => (
               <div
