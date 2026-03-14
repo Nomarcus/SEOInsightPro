@@ -130,17 +130,29 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
           throw new Error(aiResult.error || "AI analysis failed");
         }
 
-        // 5. Save analysis log (only for logged-in users)
-        if (user) {
-          try {
-            await supabase.from("analysis_logs").insert({
-              user_id: user.id,
-              url: normalizedUrl,
-              overall_score: aiResult.overallScore || 0,
-            });
-          } catch (logError) {
-            console.error("Failed to save analysis log:", logError);
+        // 5. Log analysis for ALL users (anonymous + authenticated)
+        // Uses /api/track which bypasses RLS via supabaseAdmin
+        try {
+          const scoreBreakdown: Record<string, number> = {};
+          if (aiResult.categoryScores) {
+            for (const [k, v] of Object.entries(aiResult.categoryScores)) {
+              if (v && typeof (v as { score: number }).score === "number") {
+                scoreBreakdown[k] = (v as { score: number }).score;
+              }
+            }
           }
+          await fetch("/api/track", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: normalizedUrl,
+              score: aiResult.overallScore || 0,
+              userId: user?.id ?? undefined,
+              scoreBreakdown,
+            }),
+          });
+        } catch {
+          // Non-blocking — never fail the analysis because of logging
         }
 
         setAnalysisResult(aiResult as AnalysisResult);

@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/shared/theme-provider";
 import { AnalysisProvider } from "@/hooks/use-analysis";
 import { BrandingProvider } from "@/hooks/use-branding";
 import { AuthProvider } from "@/hooks/use-auth";
+import { PageTracker } from "@/components/analytics/page-tracker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -151,7 +152,10 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <BrandingProvider>
-              <AnalysisProvider>{children}</AnalysisProvider>
+              <AnalysisProvider>
+                <PageTracker />
+                {children}
+              </AnalysisProvider>
             </BrandingProvider>
           </AuthProvider>
         </ThemeProvider>
