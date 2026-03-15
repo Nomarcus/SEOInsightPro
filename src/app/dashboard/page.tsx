@@ -31,6 +31,7 @@ import { ProPdfButton } from "@/components/dashboard/pro-pdf-button";
 import { ContentIntelligence } from "@/components/dashboard/content-intelligence";
 import { AiSeoScore } from "@/components/dashboard/ai-seo-score";
 import { FixGuideTeaser } from "@/components/dashboard/fix-guide-teaser";
+import { PlainReportButton } from "@/components/dashboard/plain-report-button";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -116,6 +117,7 @@ export default function DashboardPage() {
                 Dual AI Verified
               </span>
             )}
+            <PlainReportButton url={url} analysisResult={result} />
             <Link
               href="/fix-guide"
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
