@@ -25,6 +25,13 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Natural Language analysis failed";
     console.error("NL API error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Return graceful empty result so the rest of the analysis is unaffected
+    return NextResponse.json({
+      entities: [],
+      categories: [],
+      sentiment: { score: 0, magnitude: 0, label: "neutral" },
+      detectedLanguage: "en",
+      _error: message,
+    });
   }
 }
