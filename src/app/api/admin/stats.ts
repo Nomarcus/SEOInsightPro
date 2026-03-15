@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const adminSecret = url.searchParams.get("token");
 
-    if (adminSecret !== process.env.NEXT_PUBLIC_ADMIN_SECRET) {
+    if (adminSecret !== process.env.ADMIN_SECRET) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
