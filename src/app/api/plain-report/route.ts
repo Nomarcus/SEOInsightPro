@@ -4,7 +4,17 @@ import Anthropic from "@anthropic-ai/sdk";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { url, overallScore, categoryScores, strengths, weaknesses, quickWins } = body;
+    const {
+      url,
+      overallScore,
+      categoryScores,
+      strengths,
+      weaknesses,
+      quickWins,
+      actionItems,
+      strategy,
+      industryCategory,
+    } = body;
 
     if (!url || overallScore === undefined) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
@@ -13,31 +23,64 @@ export async function POST(request: Request) {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const strengthList = (strengths || [])
-      .slice(0, 5)
-      .map((s: { title: string }) => `- ${s.title}`)
+      .map((s: { title: string; description?: string }) =>
+        s.description ? `- ${s.title}: ${s.description}` : `- ${s.title}`
+      )
       .join("\n");
 
     const weaknessList = (weaknesses || [])
-      .slice(0, 5)
-      .map((w: { title: string }) => `- ${w.title}`)
+      .map((w: { title: string; description?: string; impact?: string }) =>
+        `- ${w.title}${w.description ? ": " + w.description : ""}${w.impact ? " (påverkan: " + w.impact + ")" : ""}`
+      )
       .join("\n");
 
     const winsList = (quickWins || [])
+      .map((w: { action: string; impact?: string }) =>
+        `- ${w.action}${w.impact ? " → " + w.impact : ""}`
+      )
+      .join("\n");
+
+    const actionList = (actionItems || [])
+      .slice(0, 5)
+      .map((a: { task: string; priority?: string }) =>
+        `- ${a.task}${a.priority ? " [${a.priority}]" : ""}`
+      )
+      .join("\n");
+
+    const strategyList = (strategy || [])
       .slice(0, 3)
-      .map((w: { action: string }) => `- ${w.action}`)
+      .map((s: { recommendation: string }) => `- ${s.recommendation}`)
       .join("\n");
 
     const scores = categoryScores
       ? Object.entries(categoryScores)
-          .map(([k, v]) => `${k}: ${(v as { score: number }).score}/100`)
+          .map(([k, v]) => {
+            const label: Record<string, string> = {
+              technical: "Teknik",
+              content: "Innehåll",
+              onPage: "On-Page",
+              performance: "Hastighet",
+              userExperience: "Användarupplevelse",
+            };
+            return `${label[k] || k}: ${(v as { score: number }).score}/100`;
+          })
           .join(", ")
       : "";
 
-    const prompt = `Du är en hjälpsam rådgivare som ska förklara resultatet av en SEO-analys för en företagare som inte är teknisk och inte vet vad SEO är.
+    const hostname = (() => {
+      try {
+        return new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+      } catch {
+        return url;
+      }
+    })();
 
-Webbsida som analyserats: ${url}
-Totalt SEO-betyg: ${overallScore}/100
-Delpoäng: ${scores}
+    const prompt = `Du är en vänlig och kunnig rådgivare som hjälper småföretagare att förstå hur deras hemsida presterar på Google. Du ska nu skriva en utförlig men lättläst analys av hemsidan ${hostname} på svenska. Personen du skriver till är inte teknisk — de driver kanske en restaurang, en frisersalong eller en webbutik, och vill bara veta om deras hemsida syns bra på Google och vad de kan göra åt det.
+
+ANALYSDATA FÖR ${hostname.toUpperCase()}:
+- Totalt SEO-betyg: ${overallScore}/100
+- Bransch: ${industryCategory || "Okänd"}
+- Delpoäng: ${scores}
 
 Styrkor som hittades:
 ${strengthList || "Inga noterade"}
@@ -45,20 +88,31 @@ ${strengthList || "Inga noterade"}
 Problem som hittades:
 ${weaknessList || "Inga noterade"}
 
-Snabba förbättringar att göra:
+Snabbaste förbättringarna:
 ${winsList || "Inga noterade"}
 
-Skriv nu en kort, vänlig förklaring på svenska — som om du pratar med en butiksägare som aldrig hört om SEO. Förklara:
-1. Om sidan är bra, okej eller behöver förbättras (baserat på poängen)
-2. Vad som fungerar bra (1-2 meningar, enkelt språk)
-3. Vad som är viktigast att fixa (1-2 konkreta saker, inga tekniska termer)
-4. En enkel uppmuntran eller nästa steg
+Prioriterade åtgärder:
+${actionList || "Inga noterade"}
 
-Håll texten kort — max 150 ord. Inga rubriker, inga punktlistor. Bara löpande text som man kan läsa högt. Skriv varmt och personligt, inte som en robot.`;
+Strategi:
+${strategyList || "Ingen noterad"}
+
+SKRIVINSTRUKTIONER:
+Skriv en utförlig men lättläst rapport på svenska i löpande text — inga rubriker, inga punktlistor, inga tekniska termer. Dela upp texten i 3–4 stycken med radbrytning mellan dem.
+
+Stycke 1: Börja med att berätta vad totalbetyget ${overallScore}/100 betyder i praktiken för just ${hostname} — är det bra, okej eller behöver det förbättras? Jämför gärna med en liknelse som alla förstår.
+
+Stycke 2: Förklara konkret vad som redan fungerar bra på sidan. Använd enkel svenska och koppla det till verkliga konsekvenser — t.ex. "det betyder att folk som söker efter dig på mobilen hittar dig enkelt".
+
+Stycke 3: Förklara de viktigaste problemen och vad de innebär i praktiken. Säg t.ex. inte "du saknar meta description" — säg istället "din sida saknar den korta texten som syns under länken i Google, och det gör att färre klickar på den". Var specifik och ärlig men inte skrämmande.
+
+Stycke 4: Ge 2–3 konkreta saker att börja med, i prioritetsordning. Förklara varför just dessa är viktigast och vad effekten kan bli. Avsluta varmt och uppmuntrande.
+
+Skriv som en människa som bryr sig, inte som en rapport. Max 300 ord totalt.`;
 
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 400,
+      max_tokens: 700,
       messages: [{ role: "user", content: prompt }],
     });
 

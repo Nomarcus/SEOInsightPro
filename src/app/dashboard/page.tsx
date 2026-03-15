@@ -117,7 +117,6 @@ export default function DashboardPage() {
                 Dual AI Verified
               </span>
             )}
-            <PlainReportButton url={url} analysisResult={result} />
             <Link
               href="/fix-guide"
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
@@ -176,6 +175,9 @@ export default function DashboardPage() {
 
           {/* Category Breakdown */}
           <ScoreBreakdown categoryScores={result.categoryScores} />
+
+          {/* Plain language report */}
+          <PlainReportButton url={url} analysisResult={result} />
 
           {/* Content Intelligence - Google NL API (shown when available) */}
           {nlResult && <ContentIntelligence nlResult={nlResult} />}

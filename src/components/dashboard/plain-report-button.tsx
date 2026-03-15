@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Loader2, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Sparkles, MessageCircle } from "lucide-react";
 import type { AnalysisResult } from "@/lib/types";
 
 interface Props {
@@ -17,11 +17,7 @@ export function PlainReportButton({ url, analysisResult }: Props) {
   const [error, setError] = useState<string>("");
 
   const generate = async () => {
-    if (report) {
-      setOpen(true);
-      return;
-    }
-    setOpen(true);
+    if (report) return; // already fetched
     setLoading(true);
     setError("");
     try {
@@ -35,6 +31,9 @@ export function PlainReportButton({ url, analysisResult }: Props) {
           strengths: analysisResult.strengths,
           weaknesses: analysisResult.weaknesses,
           quickWins: analysisResult.quickWins,
+          actionItems: analysisResult.actionItems,
+          strategy: analysisResult.strategy,
+          industryCategory: analysisResult.industryCategory,
         }),
       });
       const data = await res.json();
@@ -47,94 +46,117 @@ export function PlainReportButton({ url, analysisResult }: Props) {
     }
   };
 
+  const toggle = () => {
+    if (!open && !report && !loading) generate();
+    setOpen((v) => !v);
+  };
+
+  const score = analysisResult.overallScore;
+  const scoreLabel =
+    score >= 80 ? "Bra" : score >= 60 ? "Godkänd" : score >= 40 ? "Behöver förbättras" : "Kritisk";
+  const scoreColor =
+    score >= 80 ? "#10B981" : score >= 60 ? "#3B82F6" : score >= 40 ? "#F59E0B" : "#EF4444";
+
   return (
-    <>
-      {/* Button */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border overflow-hidden"
+      style={{ borderColor: "rgba(6,182,212,0.25)", background: "rgba(6,182,212,0.04)" }}
+    >
+      {/* Header / toggle */}
       <button
-        onClick={generate}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-        style={{
-          background: "linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)",
-          color: "#fff",
-          boxShadow: "0 0 16px rgba(6, 182, 212, 0.3)",
-        }}
+        onClick={toggle}
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
       >
-        <MessageCircle className="w-4 h-4" />
-        <span className="hidden sm:inline">Enkel förklaring</span>
+        <div className="flex items-center gap-3">
+          <div
+            className="p-2 rounded-lg"
+            style={{ background: "rgba(6,182,212,0.12)" }}
+          >
+            <MessageCircle className="w-4 h-4" style={{ color: "#06B6D4" }} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Vad betyder detta för dig?
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              En enkel förklaring utan tekniska termer
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <span
+            className="text-xs font-bold px-2.5 py-1 rounded-full"
+            style={{ background: `${scoreColor}18`, color: scoreColor }}
+          >
+            {scoreLabel}
+          </span>
+          {open ? (
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          )}
+        </div>
       </button>
 
-      {/* Modal */}
-      <AnimatePresence>
+      {/* Expandable content */}
+      <AnimatePresence initial={false}>
         {open && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.7)" }}
-            onClick={(e) => e.target === e.currentTarget && setOpen(false)}
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative max-w-lg w-full rounded-2xl border border-border/50 p-6"
-              style={{ background: "#0F172A" }}
+            <div
+              className="px-6 pb-6 pt-2"
+              style={{ borderTop: "1px solid rgba(6,182,212,0.1)" }}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-cyan-400" />
-                  <h2 className="text-sm font-semibold text-white">
-                    Vad betyder resultatet?
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="text-muted-foreground hover:text-white transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Content */}
               {loading && (
-                <div className="flex flex-col items-center gap-3 py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+                <div className="flex items-center gap-3 py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-cyan-400 shrink-0" />
                   <p className="text-sm text-muted-foreground">
-                    Sammanfattar analysen...
+                    Analyserar och sammanfattar resultatet...
                   </p>
                 </div>
               )}
 
               {error && !loading && (
-                <p className="text-sm text-red-400 py-4">{error}</p>
+                <p className="text-sm text-red-400 py-2">{error}</p>
               )}
 
               {report && !loading && (
                 <motion.div
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
+                  className="space-y-0"
                 >
-                  <p
-                    className="text-sm leading-relaxed"
-                    style={{ color: "#CBD5E1" }}
-                  >
-                    {report}
-                  </p>
+                  {/* Render paragraphs */}
+                  {report.split("\n\n").filter(Boolean).map((para, i) => (
+                    <p
+                      key={i}
+                      className="text-sm leading-relaxed mb-3 last:mb-0"
+                      style={{ color: "#CBD5E1" }}
+                    >
+                      {para}
+                    </p>
+                  ))}
                   <div
-                    className="mt-4 pt-4 border-t text-xs text-muted-foreground flex items-center gap-1"
+                    className="mt-4 pt-3 border-t flex items-center gap-1.5 text-xs text-muted-foreground"
                     style={{ borderColor: "rgba(255,255,255,0.06)" }}
                   >
-                    <Sparkles className="w-3 h-3" />
+                    <Sparkles className="w-3 h-3 text-cyan-500" />
                     Genererad av AI baserat på din analys
                   </div>
                 </motion.div>
               )}
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </motion.div>
   );
 }
