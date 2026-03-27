@@ -99,10 +99,8 @@ export async function runAIAnalysis(
   const ruleResults = analyzeSEO(input.scrapeData, input.pageSpeedData);
   const categoryScores = calculateCategoryScores(ruleResults);
 
-  // Primary: Gemini (free tier). Claude and OpenAI kept below but not called.
-  const { analyzeWithGemini } = await import("./gemini-client");
-  const aiData = await analyzeWithGemini({ ...input, ruleResults });
-  const provider: "claude" | "openai" | "both" = "claude"; // label kept for UI compat
+  const aiData = await analyzeWithClaude(input, ruleResults);
+  const provider: "claude" | "openai" | "both" = "claude";
 
   // Merge deterministic scores with AI insights
   const result: AnalysisResult = {
