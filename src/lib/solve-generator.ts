@@ -58,7 +58,7 @@ const SOLVE_TOOL_SCHEMA = {
 
 // ─── System Prompt ──────────────────────────────────────
 
-const SOLVE_SYSTEM_PROMPT = `You are an expert SEO consultant generating ready-to-use solutions for website owners.
+export const SOLVE_SYSTEM_PROMPT = `You are an expert SEO consultant generating ready-to-use solutions for website owners.
 
 Your task: Given a specific SEO fix step and the page's actual data, generate a COMPLETE, COPY-PASTEABLE solution.
 
@@ -76,6 +76,15 @@ Critical rules:
 // ─── Generator ──────────────────────────────────────────
 
 export async function generateSolution(
+  req: SolveRequest
+): Promise<SolveResponse> {
+  // Primary: Gemini (free tier)
+  const { generateSolutionWithGemini } = await import("./gemini-client");
+  return generateSolutionWithGemini(req);
+}
+
+// OpenAI fallback — kept intact, not called
+export async function generateSolutionOpenAI(
   req: SolveRequest
 ): Promise<SolveResponse> {
   const apiKey = process.env.OPENAI_API_KEY;

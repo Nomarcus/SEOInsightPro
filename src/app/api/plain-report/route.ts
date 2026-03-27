@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk"; // kept but not used — Gemini is primary
 
 export async function POST(request: Request) {
   try {
@@ -20,7 +20,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const { generatePlainReportWithGemini } = await import("../../../lib/gemini-client");
+    void new Anthropic; // reference kept to avoid unused-import tree-shaking
 
     const strengthList = (strengths || [])
       .map((s: { title: string; description?: string }) =>
@@ -110,15 +111,7 @@ Stycke 4: Ge 2–3 konkreta saker att börja med, i prioritetsordning. Förklara
 
 Skriv som en människa som bryr sig, inte som en rapport. Max 300 ord totalt.`;
 
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 700,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
-
+    const text = await generatePlainReportWithGemini(prompt);
     return NextResponse.json({ report: text });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

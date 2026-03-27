@@ -99,41 +99,10 @@ export async function runAIAnalysis(
   const ruleResults = analyzeSEO(input.scrapeData, input.pageSpeedData);
   const categoryScores = calculateCategoryScores(ruleResults);
 
-  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
-  const hasOpenAI = !!process.env.OPENAI_API_KEY;
-
-  let aiData: Record<string, unknown>;
-  let provider: "claude" | "openai" | "both" = "claude";
-
-  if (hasAnthropic && hasOpenAI) {
-    // Use both for cross-validation, pick Claude as primary
-    try {
-      const [claudeResult, openaiResult] = await Promise.allSettled([
-        analyzeWithClaude(input, ruleResults),
-        analyzeWithOpenAI(input, ruleResults),
-      ]);
-
-      if (claudeResult.status === "fulfilled") {
-        aiData = claudeResult.value;
-        provider = openaiResult.status === "fulfilled" ? "both" : "claude";
-      } else if (openaiResult.status === "fulfilled") {
-        aiData = openaiResult.value;
-        provider = "openai";
-      } else {
-        throw claudeResult.reason;
-      }
-    } catch (err) {
-      throw new Error(`AI analysis failed: ${err instanceof Error ? err.message : "Unknown error"}`);
-    }
-  } else if (hasAnthropic) {
-    aiData = await analyzeWithClaude(input, ruleResults);
-    provider = "claude";
-  } else if (hasOpenAI) {
-    aiData = await analyzeWithOpenAI(input, ruleResults);
-    provider = "openai";
-  } else {
-    throw new Error("No AI API keys configured. Set ANTHROPIC_API_KEY and/or OPENAI_API_KEY.");
-  }
+  // Primary: Gemini (free tier). Claude and OpenAI kept below but not called.
+  const { analyzeWithGemini } = await import("./gemini-client");
+  const aiData = await analyzeWithGemini({ ...input, ruleResults });
+  const provider: "claude" | "openai" | "both" = "claude"; // label kept for UI compat
 
   // Merge deterministic scores with AI insights
   const result: AnalysisResult = {
