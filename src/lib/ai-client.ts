@@ -33,6 +33,7 @@ async function analyzeWithClaude(
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
+    temperature: 0,
     system: SEO_ANALYSIS_SYSTEM_PROMPT,
     tools: [ANALYSIS_TOOL_SCHEMA as Anthropic.Messages.Tool],
     messages: [{ role: "user", content: userMessage }],
@@ -99,8 +100,30 @@ export async function runAIAnalysis(
   const ruleResults = analyzeSEO(input.scrapeData, input.pageSpeedData);
   const categoryScores = calculateCategoryScores(ruleResults);
 
-  const aiData = await analyzeWithClaude(input, ruleResults);
-  const provider: "claude" | "openai" | "both" = "claude";
+  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+
+  let aiData: Record<string, unknown>;
+  let provider: "claude" | "openai" | "both" = "claude";
+
+  if (hasAnthropic) {
+    try {
+      aiData = await analyzeWithClaude(input, ruleResults);
+      provider = "claude";
+    } catch (err) {
+      if (hasOpenAI) {
+        aiData = await analyzeWithOpenAI(input, ruleResults);
+        provider = "openai";
+      } else {
+        throw err;
+      }
+    }
+  } else if (hasOpenAI) {
+    aiData = await analyzeWithOpenAI(input, ruleResults);
+    provider = "openai";
+  } else {
+    throw new Error("No AI API keys configured. Set ANTHROPIC_API_KEY and/or OPENAI_API_KEY.");
+  }
 
   // Merge deterministic scores with AI insights
   const result: AnalysisResult = {
