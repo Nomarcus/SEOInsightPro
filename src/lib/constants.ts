@@ -65,7 +65,7 @@ export const CWV_THRESHOLDS = {
 // --- Default branding ---
 export const DEFAULT_BRANDING: BrandingConfig = {
   consultantName: "SEO Expert",
-  consultantEmail: "contact@example.com",
+  consultantEmail: "marcus.mpai@gmail.com",
   consultantPhone: "",
   companyName: "SEO Insight Pro",
   logoUrl: null,
