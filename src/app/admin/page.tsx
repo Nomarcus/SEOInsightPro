@@ -225,7 +225,13 @@ function AdminPageContent() {
     setError("");
     try {
       const response = await fetch(`/api/admin/stats?token=${secret}`);
-      if (!response.ok) throw new Error("Unauthorized or server error");
+      if (response.status === 401) {
+        localStorage.removeItem("admin_token");
+        setAuthenticated(false);
+        setAdminSecret(null);
+        throw new Error("Fel token — ange rätt ADMIN_SECRET från Vercel");
+      }
+      if (!response.ok) throw new Error(`Server error (${response.status})`);
       const data = await response.json();
       setStats(data);
     } catch (err) {
