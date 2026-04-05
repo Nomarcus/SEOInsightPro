@@ -6,7 +6,7 @@ import type { AnalysisResult } from "@/lib/types";
 const requestSchema = z.object({
   analysisResult: z.object({
     overallScore: z.number(),
-    categoryScores: z.record(z.object({ score: z.number() })),
+    categoryScores: z.record(z.string(), z.object({ score: z.number() })),
     strengths: z.array(z.object({ title: z.string() })).optional(),
     weaknesses: z.array(z.object({ title: z.string() })).optional(),
     quickWins: z.array(z.object({ title: z.string() })).optional(),
