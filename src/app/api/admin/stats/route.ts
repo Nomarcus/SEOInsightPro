@@ -30,6 +30,7 @@ export async function GET(request: Request) {
     // Fetch all data in parallel
     const [
       usersData,
+      userAccountsData,
       paymentsData,
       allAnalysesData,
       recentAnalysesData,
@@ -38,8 +39,14 @@ export async function GET(request: Request) {
       pageViewsData,
       todayPageViewsData,
     ] = await Promise.all([
-      // Total users
+      // Total users count
       supabaseAdmin.from("user_accounts").select("id, created_at", { count: "exact" }),
+
+      // All user accounts with full details
+      supabaseAdmin
+        .from("user_accounts")
+        .select("id, user_id, email, credits, created_at, updated_at")
+        .order("created_at", { ascending: false }),
 
       // Completed payments
       supabaseAdmin.from("payments").select("*").eq("status", "completed"),
@@ -86,6 +93,7 @@ export async function GET(request: Request) {
     ]);
 
     const userCount = usersData.count || 0;
+    const userAccounts = userAccountsData.data || [];
     const payments = paymentsData.data || [];
     const analyses14Days = allAnalysesData.data || [];
     const recentAnalyses = recentAnalysesData.data || [];
@@ -183,6 +191,41 @@ export async function GET(request: Request) {
     const conversionRate =
       userCount > 0 ? ((payingUsers / userCount) * 100).toFixed(2) : "0.00";
 
+    // ── User list with last activity ──────────────────────
+    // Build map of last analysis per user
+    const lastAnalysisByUser: Record<string, { date: string; score: number | null }> = {};
+    recentAnalyses.forEach((a) => {
+      if (a.user_id && !lastAnalysisByUser[a.user_id]) {
+        lastAnalysisByUser[a.user_id] = {
+          date: a.created_at,
+          score: a.overall_score,
+        };
+      }
+    });
+
+    // Build map of payments by user
+    const paymentsByUser: Record<string, { date: string; amount: number }> = {};
+    payments.forEach((p) => {
+      if (p.user_id && !paymentsByUser[p.user_id]) {
+        const amount = p.currency === "SEK" ? p.price_sek : p.price_eur;
+        paymentsByUser[p.user_id] = {
+          date: p.completed_at || p.created_at,
+          amount,
+        };
+      }
+    });
+
+    // Format users data
+    const usersList = userAccounts.map((ua) => ({
+      id: ua.id,
+      email: ua.email,
+      credits: ua.credits,
+      createdAt: ua.created_at,
+      lastActivity: lastAnalysisByUser[ua.user_id]?.date || null,
+      isPaid: !!paymentsByUser[ua.user_id],
+      lastPayment: paymentsByUser[ua.user_id] || null,
+    }));
+
     // ── Recent analyses feed (formatted) ──────────────────
     const recentFeed = recentAnalyses.slice(0, 50).map((a) => ({
       id: a.id,
@@ -217,6 +260,7 @@ export async function GET(request: Request) {
       topCountries,
       topPaths,
       recentFeed,
+      users: usersList,
 
       // Breakdowns
       scoreBuckets,

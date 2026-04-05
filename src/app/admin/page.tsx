@@ -47,6 +47,16 @@ interface RecentAnalysis {
   createdAt: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  credits: number;
+  createdAt: string;
+  lastActivity: string | null;
+  isPaid: boolean;
+  lastPayment: { date: string; amount: number } | null;
+}
+
 interface Stats {
   // Counts
   userCount: number;
@@ -68,6 +78,7 @@ interface Stats {
   topCountries: Array<{ country: string; count: number }>;
   topPaths: Array<{ path: string; count: number }>;
   recentFeed: RecentAnalysis[];
+  users: User[];
   // Breakdowns
   scoreBuckets: Record<string, number>;
   anonymousCount: number;
@@ -727,6 +738,66 @@ function AdminPageContent() {
                 </div>
               </motion.div>
             </div>
+
+            {/* Users table */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.65 }}
+              className="rounded-xl border border-border/60 bg-muted/10 overflow-hidden"
+            >
+              <div className="px-5 py-4 border-b border-border/40">
+                <h2 className="text-sm font-semibold">Registrerade Användare</h2>
+                <p className="text-xs text-muted-foreground mt-1">{stats.users.length} totalt</p>
+              </div>
+              <div className="divide-y divide-border/30 max-h-[600px] overflow-y-auto">
+                {stats.users.length === 0 ? (
+                  <p className="text-center py-8 text-sm text-muted-foreground">
+                    Ingen aktivitet ännu
+                  </p>
+                ) : (
+                  stats.users.map((user, idx) => (
+                    <motion.div
+                      key={user.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.65 + idx * 0.02 }}
+                      className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{user.email}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-muted-foreground">
+                            Registrerad: {timeAgo(user.createdAt)}
+                          </span>
+                          {user.lastActivity && (
+                            <span className="text-[10px] text-muted-foreground">
+                              • Senast aktiv: {timeAgo(user.lastActivity)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <div className="text-right">
+                          <div className="text-xs font-semibold">{user.credits}</div>
+                          <div className="text-[10px] text-muted-foreground">analyser</div>
+                        </div>
+                        <span
+                          className="text-[9px] font-bold px-2 py-1 rounded uppercase"
+                          style={
+                            user.isPaid
+                              ? { background: "rgba(16,185,129,0.15)", color: "#10B981" }
+                              : { background: "rgba(156,163,175,0.15)", color: "#6B7280" }
+                          }
+                        >
+                          {user.isPaid ? "Betald" : "Gratis"}
+                        </span>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </motion.div>
 
           </div>
         )}
